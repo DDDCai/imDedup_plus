@@ -2,7 +2,7 @@
 
 ## Pipeline Structure
 
-We exploited pipeline to speed up the deduplication process. The pipeline structure is shown in the figure below. There are five pipes which can be divided into three modules.
+We exploited pipeline to speed up the deduplication process. The pipeline structure is shown as the figure below. There are five pipes which can be divided into three modules.
 
 ![image](https://github.com/DDDCai/imDedup_plus/assets/29863262/79212839-6d9f-4528-a049-bdb71ae632c6)
 
