@@ -26,7 +26,7 @@ This moudle outputs the compressed target.
 CMake  
 Glib-2.0
 
-### Build it
+### Build
 
 cd ${build_folder}  
 cmake ${CMakeLists.txt_folder}  
