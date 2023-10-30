@@ -1,8 +1,8 @@
 /*
  * @Author: Cai Deng
  * @Date: 2020-11-09 14:22:29
- * @LastEditors: Cai Deng
- * @LastEditTime: 2022-07-19 06:21:08
+ * @LastEditors: DDDCai dengcaidengcai@163.com
+ * @LastEditTime: 2023-10-30 14:19:43
  * @Description: 
  */
 #ifndef _INCLUDE_IDEDUP_H_
@@ -35,14 +35,10 @@
 
 /*------------------------------------------*/
 
-// #define HEADER_DELTA
+#define HEADER_DELTA
 #define COMPRESS_DELTA_INS
 #define THREAD_OPTI
 #define JPEG_SEPA_COMP
-// #define OMIT_LOW_DELTA
-// #define FEATURE_CHECK
-// #define UNIFORMLY_SAMPLE
-// #define DC_HASH
 
 /*------------------------------------------*/
 
@@ -59,13 +55,18 @@
 #define RAW 0
 #define DECODED 1
 
+#define FIX_OPTI
+#define DC_HASH
+#define FEATURE_CHECK
+// #define UNIFORMLY_SAMPLE
+
 /*------------------------------------------*/
 
 extern int READ_THREAD_NUM;
 extern int DECODE_THREAD_NUM;
 extern int MIDDLE_THREAD_NUM;
-extern int REJPEG_THREAD_NUM;
 extern int WRITE_THREAD_NUM;
+extern int REJPEG_THREAD_NUM;
 
 /*------------------------------------------*/
 
@@ -100,6 +101,7 @@ extern int64_t PATCH_SIZE;
 
 /*------------------------------------------*/
 
+// #define FSE
 #define HUFFMAN
 #define ORIGINAL_HUFF
 #ifdef ORIGINAL_HUFF

@@ -2,7 +2,7 @@
  * @Author: Cai Deng
  * @Date: 2021-06-21 06:41:11
  * @LastEditors: Cai Deng
- * @LastEditTime: 2022-05-30 14:19:53
+ * @LastEditTime: 2022-05-31 08:21:42
  * @Description: 
  */
 #include "index.h"
@@ -204,45 +204,60 @@ static void *index_compute_thread(void *parameter)
     return subBlockTab;
 }
 
-static GHashTable **create_block_index(jpeg_coe_ptr base, uint64_t *size)
+static GHashTable **create_block_index(jpeg_coe_ptr base, uint64_t *size, uint64_t fix_flag)
 {
     GHashTable  **subBlockTab   =   (GHashTable**)malloc(sizeof(GHashTable*)*3);
-    pthread_mutex_t mutex[3];
-    uint8_t     *ptr[3];
-    uint64_t    width[3], height[3];
-    for(int i=0; i<3; i++)
+    #ifdef FIX_OPTI
+    if(fix_flag)
     {
-        width[i] = base->imgSize[i*2];
-        height[i] = base->imgSize[i*2+1];
-    }
-    ptr[0] = base->data;
-    for(int i=1; i<3; i++)
-        ptr[i] = ptr[i-1] + width[i-1]*height[i-1]*sizeof(JBLOCK);
+        pthread_mutex_t mutex[3];
+        uint8_t     *ptr[3];
+        uint64_t    width[3], height[3];
+        for(int i=0; i<3; i++)
+        {
+            width[i] = base->imgSize[i*2];
+            height[i] = base->imgSize[i*2+1];
+        }
+        ptr[0] = base->data;
+        for(int i=1; i<3; i++)
+            ptr[i] = ptr[i-1] + width[i-1]*height[i-1]*sizeof(JBLOCK);
 
-    pthread_t   pid[3];
-    void        **arg[3];
-    uint64_t    size_part[3] = {0};
-    for(int i=0; i<3; i++)
+        pthread_t   pid[3];
+        void        **arg[3];
+        uint64_t    size_part[3] = {0};
+        for(int i=0; i<3; i++)
+        {
+            arg[i]  =   (void**)malloc(sizeof(void*)*5);
+            pthread_mutex_init(&mutex[i], NULL);
+            arg[i][0] = (void*)width[i];
+            arg[i][1] = (void*)height[i];
+            arg[i][2] = ptr[i];
+            arg[i][3] = &mutex[i];
+            arg[i][4] = &size_part[i];
+
+            pthread_create(&pid[i], NULL, index_compute_thread, (void*)arg[i]);
+        }
+
+        *size   =   0;
+        for(int i=0; i<3; i++)
+        {
+            pthread_join(pid[i], (void**)(&subBlockTab[i]));
+            free(arg[i]);
+            pthread_mutex_destroy(&mutex[i]);
+            *size   +=  size_part[i];
+        }
+    }
+    else
     {
-        arg[i]  =   (void**)malloc(sizeof(void*)*5);
-        pthread_mutex_init(&mutex[i], NULL);
-        arg[i][0] = (void*)width[i];
-        arg[i][1] = (void*)height[i];
-        arg[i][2] = ptr[i];
-        arg[i][3] = &mutex[i];
-        arg[i][4] = &size_part[i];
-
-        pthread_create(&pid[i], NULL, index_compute_thread, (void*)arg[i]);
+    #endif
+        for(int i=0; i<3; i++)
+        {
+            subBlockTab[i] = g_hash_table_new_full(g_int_hash,g_int_equal,free_item,free_digest_list);
+        }
+        *size   =   0;
+    #ifdef FIX_OPTI
     }
-
-    *size   =   0;
-    for(int i=0; i<3; i++)
-    {
-        pthread_join(pid[i], (void**)(&subBlockTab[i]));
-        free(arg[i]);
-        pthread_mutex_destroy(&mutex[i]);
-        *size   +=  size_part[i];
-    }
+    #endif
 
     return subBlockTab;
 }
@@ -281,7 +296,7 @@ void* index_thread(void *parameter)
 
             uint64_t    tabSize;
             detectPtr->subBlockTab  =   
-                create_block_index(((imagePtr)detectPtr->base->data)->decdData->targetInfo->coe, &tabSize);
+                create_block_index(((imagePtr)detectPtr->base->data)->decdData->targetInfo->coe, &tabSize, detectPtr->fix_flag);
             detectPtr->mem_size     +=  tabSize;
 
             #ifdef PART_TIME

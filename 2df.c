@@ -2,7 +2,7 @@
  * @Author: Cai Deng
  * @Date: 2020-11-19 11:32:09
  * @LastEditors: Cai Deng
- * @LastEditTime: 2022-05-30 13:49:39
+ * @LastEditTime: 2022-05-31 08:30:48
  * @Description: 
  */
 
@@ -96,6 +96,9 @@ static void free_node(gpointer p)
     free(decodeptr);
 
     free(image->sfs);
+    #ifdef FIX_OPTI
+    free(image->position);
+    #endif
     #ifdef FEATURE_CHECK
     free(image->dc);
     #endif
@@ -148,11 +151,14 @@ static uint64_t fill_buf_node(void *p)
 
 static imagePtr compute_features(decodedDataPtr decodePtr)
 {
-    int         i, j, k, m;
+    uint32_t         i, j, k, m;
     imagePtr    image   =   (imagePtr)malloc(sizeof(imageData));
                 image->sfs  =   (uint64_t*)malloc(sizeof(uint64_t)*SF_NUM);
+                #ifdef FIX_OPTI
+                image->position =   (uint64_t*)malloc(sizeof(uint64_t)*SF_NUM);
+                #endif
                 #ifdef FEATURE_CHECK
-                image->dc   =   (short*)malloc(sizeof(short)*SF_NUM);
+                image->dc       =   (short*)malloc(sizeof(short)*SF_NUM);
                 #endif
     uint32_t    w       =   decodePtr->targetInfo->coe->imgSize[0],
                 h       =   decodePtr->targetInfo->coe->imgSize[1];
@@ -162,8 +168,9 @@ static imagePtr compute_features(decodedDataPtr decodePtr)
         jbrow[i]    =   (JBLOCKROW)ptr;
     JBLOCKARRAY jbarray =   jbrow;
 
-    uint64_t    max[FEATURE_NUM];
+    uint64_t    max[FEATURE_NUM], pos[FEATURE_NUM];
     memset(max, 0, FEATURE_NUM*sizeof(uint64_t));
+    memset(pos, 0, FEATURE_NUM*sizeof(uint64_t));
     #ifdef FEATURE_CHECK
     short       dc[FEATURE_NUM];
     memset(dc, 0, sizeof(short)*FEATURE_NUM);
@@ -226,8 +233,12 @@ static imagePtr compute_features(decodedDataPtr decodePtr)
                         if(ltFeature > max[m])
                         {
                             max[m] = ltFeature;
+                            #ifdef FIX_OPTI
+                            pos[m] = i;
+                            pos[m] = (pos[m]<<32)|j;
+                            #endif
                             #ifdef FEATURE_CHECK
-                            dc[m]   =   jbarray[i][j][0];
+                            dc[m] = jbarray[i][j][0];
                             #endif
                         }
                     }
@@ -389,12 +400,18 @@ static imagePtr compute_features(decodedDataPtr decodePtr)
     for(i=0,k=0; i<SF_NUM; i++)
     {
         image->sfs[i]   =   0;
+        #ifdef FIX_OPTI
+        image->position[i] =   0;
+        #endif
         #ifdef FEATURE_CHECK
         image->dc[i]    =   0;
         #endif
         for(j=0; j<FEA_PER_SF; j++,k++)
         {
             image->sfs[i]   +=  max[k];
+            #ifdef FIX_OPTI
+            image->position[i]  +=  pos[k];
+            #endif
             #ifdef FEATURE_CHECK
             image->dc[i]    +=  dc[k];
             #endif
@@ -421,6 +438,7 @@ static detectionDataPtr detect_a_single_img(decodedDataPtr decodePtr, GHashTable
     uint32_t        tmp;
     uint32_t        matchCounter, bestCounter = 0;
     buf_node        *node   =   (buf_node*)malloc(sizeof(buf_node)), *baseNode, *bestMatch = NULL;
+    uint64_t        fix_flag, flag_tmp;
 
     pthread_mutex_init(&node->mutex, NULL);
     node->data  =   image;
@@ -445,6 +463,9 @@ static detectionDataPtr detect_a_single_img(decodedDataPtr decodePtr, GHashTable
             {
                 baseNode    =   (buf_node*)g_ptr_array_index(bases[i], j);
                 baseImage   =   (imagePtr)(baseNode->data);
+                #ifdef FIX_OPTI
+                flag_tmp    =   1;
+                #endif
                 for(k=0,matchCounter=0; k<SF_NUM; k++)
                 {
                     if((baseImage->sfs[k]==features[k])
@@ -452,12 +473,25 @@ static detectionDataPtr detect_a_single_img(decodedDataPtr decodePtr, GHashTable
                         && (baseImage->dc[k]==image->dc[k])
                         #endif
                     )
+                    {
                         matchCounter ++;
+                        #ifdef FIX_OPTI
+                        if(baseImage->position[k]==image->position[k])
+                            flag_tmp = 0;
+                        #endif
+                    }
                 }
                 if(matchCounter > bestCounter)
                 {
                     bestCounter =   matchCounter;
                     bestMatch   =   baseNode;
+                    #ifdef FIX_OPTI
+                    // if((double)flag_tmp/matchCounter > 0.5)
+                    //     fix_flag    =   1;
+                    // else
+                    //     fix_flag    =   0;
+                    fix_flag    =   flag_tmp;
+                    #endif
                 }
                 if(matchCounter == SF_NUM)
                     break;
@@ -496,6 +530,9 @@ static detectionDataPtr detect_a_single_img(decodedDataPtr decodePtr, GHashTable
         detectionDataPtr    detectPtr   =   (detectionDataPtr)malloc(sizeof(detectionNode));
         detectPtr->base     =   bestMatch;
         detectPtr->target   =   node;
+        #ifdef FIX_OPTI
+        detectPtr->fix_flag =   fix_flag;
+        #endif
 
         pthread_mutex_lock(&bestMatch->mutex);
         bestMatch->link  ++;

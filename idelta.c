@@ -2,7 +2,7 @@
  * @Author: Cai Deng
  * @Date: 2020-11-05 09:12:19
  * @LastEditors: Cai Deng
- * @LastEditTime: 2022-06-23 07:18:55
+ * @LastEditTime: 2022-07-18 14:28:23
  * @Description: 
  */
 #include "idelta.h"
@@ -35,96 +35,144 @@ static void* get_instructions_thread(void *parameter)
     uint64_t    tar_width   = (uint64_t)arg[7],
                 base_width  = (uint64_t)arg[8],
                 tar_from    = (uint64_t)arg[9],
-                tar_to      = (uint64_t)arg[10];
+                tar_to      = (uint64_t)arg[10],
+                base_height = (uint64_t)arg[12];
     GHashTable  *subBlockTab= (GHashTable*)arg[11];
     #ifdef DEBUG_2
     uint64_t    *simCounter = (uint64_t*)arg[13];
     #endif
-
-    for(COPY_Y row=tar_from; row<=tar_to; row++)
+    #ifdef FIX_OPTI
+    uint64_t    fix_flag    =   (uint64_t)arg[14];
+    
+    if(fix_flag)
     {
-        COPY_X   column = 0;
-        INSERT_L in_len = 0;
-        while(column <= tar_width-LBS)
+        for(COPY_Y row=tar_from; row<=tar_to; row++)
         {
-            COPY_X x, xmax;
-            COPY_Y y, ymax;
-            COPY_L len = 0, lenmax = 0;
-            #ifndef DC_HASH
-            uint8_t *data_ptr = (uint8_t*)(tar_jbarray[row][column]);
-            #endif
-            #ifdef USE_RABIN
-            #ifndef DC_HASH
-            uint32_t hash = adler32(1, data_ptr, sizeof(JBLOCK));
-            #else
-            uint16_t *data_ptr = (uint16_t*)(tar_jbarray[row][column]);
-            uint32_t hash = (data_ptr[0]<<24)|(data_ptr[1]&0xff<<16)|(data_ptr[8]&0xff<<8)|(data_ptr[9]&0xff);
-            #endif
-            digest_list *list = (digest_list*)g_hash_table_lookup(subBlockTab, &hash);
-
-            #else
-            uint64_t *hash = (uint64_t*)g_malloc0(sizeof(uint64_t));
-            // gear_slide_a_block(hash, data_ptr);
-            for(int i=1; i<128; i+=2)
+            COPY_X   column = 0;
+            INSERT_L in_len = 0;
+            while(column <= tar_width-LBS)
             {
-                *hash <<= 1;
-                if(data_ptr[i]&1) *hash |= 1;
-            }
-            digest_list *list = (digest_list*)g_hash_table_lookup(subBlockTab, hash);
-            free(hash);
-            #endif
+                COPY_X x, xmax;
+                COPY_Y y, ymax;
+                COPY_L len = 0, lenmax = 0;
+                #ifndef DC_HASH
+                uint8_t *data_ptr = (uint8_t*)(tar_jbarray[row][column]);
+                #endif
+                #ifdef USE_RABIN
+                #ifndef DC_HASH
+                uint32_t hash = adler32(1, data_ptr, sizeof(JBLOCK));
+                #else
+                uint16_t *data_ptr = (uint16_t*)(tar_jbarray[row][column]);
+                uint32_t hash = (data_ptr[0]<<24)|(data_ptr[1]&0xff<<16)|(data_ptr[8]&0xff<<8)|(data_ptr[9]&0xff);
+                #endif
+                digest_list *list = (digest_list*)g_hash_table_lookup(subBlockTab, &hash);
 
-            if(list)
-            {
-                digest_ptr d_item = list->head;
-                while(d_item)
+                #else
+                uint64_t *hash = (uint64_t*)g_malloc0(sizeof(uint64_t));
+                // gear_slide_a_block(hash, data_ptr);
+                for(int i=1; i<128; i+=2)
                 {
-                    x = d_item->x;
-                    y = d_item->y;
-                    len = 0;
-                    for(int j=x,k=column; j<=base_width-LBS && k<=tar_width-LBS; j++,k++,len++)
+                    *hash <<= 1;
+                    if(data_ptr[i]&1) *hash |= 1;
+                }
+                digest_list *list = (digest_list*)g_hash_table_lookup(subBlockTab, hash);
+                free(hash);
+                #endif
+
+                if(list)
+                {
+                    digest_ptr d_item = list->head;
+                    while(d_item)
                     {
-                        if(memcmp(base_jbarray[y][j], tar_jbarray[row][k], sizeof(JBLOCK)))
+                        x = d_item->x;
+                        y = d_item->y;
+                        len = 0;
+                        for(int j=x,k=column; j<=base_width-LBS && k<=tar_width-LBS; j++,k++,len++)
+                        {
+                            if(memcmp(base_jbarray[y][j], tar_jbarray[row][k], sizeof(JBLOCK)))
+                                break;
+                        }
+                        if(len > lenmax)
+                        {
+                            lenmax = len;
+                            xmax = x;
+                            ymax = y;
+                        }
+                        #ifdef TURN_ON_DELTA_OPTI
+                        /*  The same position is most likely to be the best 
+                        *  matching position.  */
+                        if(x==column && y==row && lenmax>0)
                             break;
+                        /*------------------------------------------------*/
+                        #endif
+                        d_item = d_item->next;
                     }
-                    if(len > lenmax)
-                    {
-                        lenmax = len;
-                        xmax = x;
-                        ymax = y;
-                    }
-                    #ifdef TURN_ON_DELTA_OPTI
-                    /*  The same position is most likely to be the best 
-                    *  matching position.  */
-                    if(x==column && y==row && lenmax>0)
-                        break;
-                    /*------------------------------------------------*/
+                }
+                if(lenmax)
+                {
+                    g_array_append_val(cpx,xmax);
+                    g_array_append_val(cpy,ymax);
+                    g_array_append_val(cpl,lenmax);
+                    g_array_append_val(inl,in_len);
+                    in_len = 0;
+                    column += lenmax;
+                    #ifdef DEBUG_2
+                    *simCounter += lenmax;
                     #endif
-                    d_item = d_item->next;
+                }
+                else 
+                {
+                    g_ptr_array_add(inp, data_ptr);
+                    in_len ++;
+                    column ++;
                 }
             }
-            if(lenmax)
-            {
-                g_array_append_val(cpx,xmax);
-                g_array_append_val(cpy,ymax);
-                g_array_append_val(cpl,lenmax);
+            if(in_len)
                 g_array_append_val(inl,in_len);
-                in_len = 0;
-                column += lenmax;
-                #ifdef DEBUG_2
-                *simCounter += lenmax;
-                #endif
-            }
-            else 
-            {
-                g_ptr_array_add(inp, data_ptr);
-                in_len ++;
-                column ++;
-            }
         }
-        if(in_len)
-            g_array_append_val(inl,in_len);
     }
+    else
+    {
+    #endif
+        for(COPY_Y row=tar_from; row<=tar_to; row++)
+        {
+            COPY_X   column = 0;
+            INSERT_L in_len = 0;
+            while(column <= tar_width-LBS)
+            {
+                COPY_L len = 0;
+                uint8_t *data_ptr = (uint8_t*)(tar_jbarray[row][column]);
+                
+                for(int i=column; i<=base_width-LBS && i<=tar_width-LBS && row<=base_height-LBS; i++,len++)
+                {
+                    if(memcmp(base_jbarray[row][i],tar_jbarray[row][i],sizeof(JBLOCK)))
+                        break;
+                }
+                if(len)
+                {
+                    g_array_append_val(cpx,column);
+                    g_array_append_val(cpy,row);
+                    g_array_append_val(cpl,len);
+                    g_array_append_val(inl,in_len);
+                    in_len = 0;
+                    column += abs(len);
+                    #ifdef DEBUG_2
+                    *simCounter += abs(len);
+                    #endif
+                }
+                else 
+                {
+                    g_ptr_array_add(inp, data_ptr);
+                    in_len ++;
+                    column ++;
+                }
+            }
+            if(in_len)
+                g_array_append_val(inl,in_len);
+        }
+    #ifdef FIX_OPTI
+    }
+    #endif
 }
 
 // static void* get_instructions_thread(void *parameter)
@@ -236,6 +284,9 @@ static void get_instructions(dedupResPtr dedupPtr, jpeg_coe_ptr base, jpeg_coe_p
     #ifdef THREAD_OPTI
     , GHashTable **subBlockTab
     #endif
+    #ifdef FIX_OPTI
+    , uint64_t fix_flag
+    #endif
 )
 {
     #ifndef THREAD_OPTI
@@ -303,7 +354,7 @@ static void get_instructions(dedupResPtr dedupPtr, jpeg_coe_ptr base, jpeg_coe_p
         for(int j=0; j<SUB_THREAD_NUM; j++)
         {
             uint64_t    id  =   i*SUB_THREAD_NUM+j;
-            arg[id]     =   (void**)malloc(sizeof(void*)*14);
+            arg[id]     =   (void**)malloc(sizeof(void*)*15);
             arg[id][0]  =   cpx[id];
             arg[id][1]  =   cpy[id];
             arg[id][2]  =   cpl[id];
@@ -319,6 +370,9 @@ static void get_instructions(dedupResPtr dedupPtr, jpeg_coe_ptr base, jpeg_coe_p
             arg[id][12] =   (void*)base_height[i];
             #ifdef DEBUG_2
             arg[id][13] =   (void*)g_malloc0(sizeof(uint64_t));
+            #endif
+            #ifdef FIX_OPTI
+            arg[id][14] =   (void*)(uint64_t)fix_flag;
             #endif
 
             pthread_create(&p_id[id], NULL, get_instructions_thread, (void*)arg[id]);
@@ -338,77 +392,56 @@ static void get_instructions(dedupResPtr dedupPtr, jpeg_coe_ptr base, jpeg_coe_p
         free(arg[i]);
     }
     #ifdef DEBUG_2
-    double   index_point = ((double)simCounter/(tar_width[0]*tar_height[0]+tar_width[1]*tar_height[1]+tar_width[2]*tar_height[2]));
-    uint64_t index = index_point*20;
+    uint64_t index = ((double)simCounter/(tar_width[0]*tar_height[0]+tar_width[1]*tar_height[1]+tar_width[2]*tar_height[2]))*20;
     if(index==20) index = 19;
     pthread_mutex_lock(&sim_counter_mutex);
     sim_counter[index] ++;
     pthread_mutex_unlock(&sim_counter_mutex);
     #endif
 
-    #ifdef OMIT_LOW_DELTA
-    if(index_point < 0.001)
-    {
-        for(int i=0; i<3*SUB_THREAD_NUM; i++)
-        {
-            g_array_free(cpx[i], TRUE);
-            g_array_free(cpy[i], TRUE);
-            g_array_free(cpl[i], TRUE);
-            g_array_free(inl[i], TRUE);
-            g_array_free(inp[i], TRUE);
-        }
-        dedupPtr->insert_p  =   NULL;
-        dedupPtr->copy_l    =   NULL;
-    }
-    else
-    {
+    dedupPtr->y_counter =   0;
+    dedupPtr->u_counter =   0;
+    dedupPtr->v_counter =   0;
+    #ifdef JPEG_SEPA_COMP
+    dedupPtr->p_counter[0]  =   0;
+    dedupPtr->p_counter[1]  =   0;
+    dedupPtr->p_counter[2]  =   0;
     #endif
-        dedupPtr->y_counter =   0;
-        dedupPtr->u_counter =   0;
-        dedupPtr->v_counter =   0;
+    for(int i=0; i<SUB_THREAD_NUM; i++)
+    {
+        dedupPtr->y_counter +=   inl[0*SUB_THREAD_NUM+i]->len;
+        dedupPtr->u_counter +=   inl[1*SUB_THREAD_NUM+i]->len;
+        dedupPtr->v_counter +=   inl[2*SUB_THREAD_NUM+i]->len;
         #ifdef JPEG_SEPA_COMP
-        dedupPtr->p_counter[0]  =   0;
-        dedupPtr->p_counter[1]  =   0;
-        dedupPtr->p_counter[2]  =   0;
+        dedupPtr->p_counter[0]  +=  inp[0*SUB_THREAD_NUM+i]->len;
+        dedupPtr->p_counter[1]  +=  inp[1*SUB_THREAD_NUM+i]->len;
+        dedupPtr->p_counter[2]  +=  inp[2*SUB_THREAD_NUM+i]->len;
         #endif
-        for(int i=0; i<SUB_THREAD_NUM; i++)
-        {
-            dedupPtr->y_counter +=   inl[0*SUB_THREAD_NUM+i]->len;
-            dedupPtr->u_counter +=   inl[1*SUB_THREAD_NUM+i]->len;
-            dedupPtr->v_counter +=   inl[2*SUB_THREAD_NUM+i]->len;
-            #ifdef JPEG_SEPA_COMP
-            dedupPtr->p_counter[0]  +=  inp[0*SUB_THREAD_NUM+i]->len;
-            dedupPtr->p_counter[1]  +=  inp[1*SUB_THREAD_NUM+i]->len;
-            dedupPtr->p_counter[2]  +=  inp[2*SUB_THREAD_NUM+i]->len;
-            #endif
-        }
-
-        for(int i=1; i<3*SUB_THREAD_NUM; i++)
-        {
-            g_array_append_vals(cpx[0], cpx[i]->data, cpx[i]->len);
-            g_array_free(cpx[i], TRUE);
-            g_array_append_vals(cpy[0], cpy[i]->data, cpy[i]->len);
-            g_array_free(cpy[i], TRUE);
-            g_array_append_vals(cpl[0], cpl[i]->data, cpl[i]->len);
-            g_array_free(cpl[i], TRUE);
-            g_array_append_vals(inl[0], inl[i]->data, inl[i]->len);
-            g_array_free(inl[i], TRUE);
-            g_array_append_vals(inp[0], inp[i]->data, inp[i]->len);
-            g_array_free(inp[i], TRUE);
-        }
-
-        dedupPtr->copy_x    =   cpx[0];
-        dedupPtr->copy_y    =   cpy[0];
-        dedupPtr->copy_l    =   cpl[0];
-        dedupPtr->insert_l  =   inl[0];
-        dedupPtr->insert_p  =   inp[0];
-    #ifdef OMIT_LOW_DELTA
     }
-    #endif
+
+    for(int i=1; i<3*SUB_THREAD_NUM; i++)
+    {
+        g_array_append_vals(cpx[0], cpx[i]->data, cpx[i]->len);
+        g_array_free(cpx[i], TRUE);
+        g_array_append_vals(cpy[0], cpy[i]->data, cpy[i]->len);
+        g_array_free(cpy[i], TRUE);
+        g_array_append_vals(cpl[0], cpl[i]->data, cpl[i]->len);
+        g_array_free(cpl[i], TRUE);
+        g_array_append_vals(inl[0], inl[i]->data, inl[i]->len);
+        g_array_free(inl[i], TRUE);
+        g_array_append_vals(inp[0], inp[i]->data, inp[i]->len);
+        g_array_free(inp[i], TRUE);
+    }
 
     for(int i=0; i<3; i++)
         g_hash_table_destroy(subBlockTab[i]);
     free(subBlockTab);
+
+    dedupPtr->copy_x    =   cpx[0];
+    dedupPtr->copy_y    =   cpy[0];
+    dedupPtr->copy_l    =   cpl[0];
+    dedupPtr->insert_l  =   inl[0];
+    dedupPtr->insert_p  =   inp[0];
 }
 #endif
 
@@ -460,6 +493,9 @@ static dedupResPtr dedup_a_single_img(detectionDataPtr detectPtr)
     get_instructions(dedupPtr, baseCoe, targetCoe
         #ifdef THREAD_OPTI
         , detectPtr->subBlockTab
+        #endif
+        #ifdef FIX_OPTI
+        , detectPtr->fix_flag
         #endif
     );
 
