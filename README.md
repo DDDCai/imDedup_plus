@@ -21,6 +21,10 @@ This moudle outputs the compressed target.
 
 ## How to run it
 
+### Environment
+
+Ubuntu 18.04
+
 ### Requirements
 
 CMake  
