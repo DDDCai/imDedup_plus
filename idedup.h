@@ -1,8 +1,8 @@
 /*
  * @Author: Cai Deng
  * @Date: 2020-11-09 14:22:29
- * @LastEditors: DDDCai dengcaidengcai@163.com
- * @LastEditTime: 2023-10-30 14:19:43
+ * @LastEditors: Cai Deng dengcaidengcai@163.com
+ * @LastEditTime: 2024-05-10 08:31:14
  * @Description: 
  */
 #ifndef _INCLUDE_IDEDUP_H_
@@ -22,11 +22,16 @@
 #include "jpeglib.h"
 #include <unistd.h>
 
+typedef uint32_t u_int32_t;
+typedef uint8_t u_int8_t;
+typedef uint16_t u_int16_t;
+typedef uint64_t u_int64_t;
+
 /*------------------------------------------*/
 
 #define DEBUG_1
 // #define CHECK_BUFFER
-// #define CHECK_DECOMPRESS
+#define CHECK_DECOMPRESS
 // #define DO_NOT_WRITE
 #define PART_TIME
 // #define COLLISION_RATE
@@ -38,7 +43,20 @@
 #define HEADER_DELTA
 #define COMPRESS_DELTA_INS
 #define THREAD_OPTI
-#define JPEG_SEPA_COMP
+// #define JPEG_SEPA_COMP
+// #define OMIT_LOW_DELTA
+#define FEATURE_CHECK
+// #define UNIFORMLY_SAMPLE
+// #define DC_HASH
+// #define FIX_OPTI
+
+/*------------------------------------------*/
+
+#define IMDEDUP_PLUS
+#ifdef IMDEDUP_PLUS
+    #define DC_HASH
+    #define FIX_OPTI
+#endif
 
 /*------------------------------------------*/
 
@@ -55,18 +73,13 @@
 #define RAW 0
 #define DECODED 1
 
-#define FIX_OPTI
-#define DC_HASH
-#define FEATURE_CHECK
-// #define UNIFORMLY_SAMPLE
-
 /*------------------------------------------*/
 
 extern int READ_THREAD_NUM;
 extern int DECODE_THREAD_NUM;
 extern int MIDDLE_THREAD_NUM;
-extern int WRITE_THREAD_NUM;
 extern int REJPEG_THREAD_NUM;
+extern int WRITE_THREAD_NUM;
 
 /*------------------------------------------*/
 
@@ -101,10 +114,10 @@ extern int64_t PATCH_SIZE;
 
 /*------------------------------------------*/
 
-// #define FSE
-#define HUFFMAN
-#define ORIGINAL_HUFF
+#define FSE
+// #define ORIGINAL_HUFF
 #ifdef ORIGINAL_HUFF
+#undef FSE
 #define HUFFMAN
 typedef struct HUF_CElt_s_ {
   uint16_t  val;

@@ -1,8 +1,8 @@
 /*
  * @Author: Cai Deng
  * @Date: 2021-06-21 07:56:44
- * @LastEditors: Cai Deng
- * @LastEditTime: 2022-05-31 08:31:12
+ * @LastEditors: Cai Deng dengcaidengcai@163.com
+ * @LastEditTime: 2024-05-10 07:54:06
  * @Description: 
  */
 #ifndef _INCLUDE_PAIR_H_
@@ -32,7 +32,9 @@ typedef struct detectionInfo
     GHashTable      **subBlockTab;
     #endif
     uint64_t        mem_size;
-    uint64_t        fix_flag;
+    #ifdef FIX_OPTI
+    uint64_t fix_flag;
+    #endif
     struct detectionInfo    *next;
 
 }   detectionNode, *detectionDataPtr;

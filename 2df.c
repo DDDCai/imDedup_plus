@@ -1,8 +1,8 @@
 /*
  * @Author: Cai Deng
  * @Date: 2020-11-19 11:32:09
- * @LastEditors: Cai Deng
- * @LastEditTime: 2022-05-31 08:30:48
+ * @LastEditors: Cai Deng dengcaidengcai@163.com
+ * @LastEditTime: 2024-05-10 07:53:09
  * @Description: 
  */
 
@@ -151,14 +151,14 @@ static uint64_t fill_buf_node(void *p)
 
 static imagePtr compute_features(decodedDataPtr decodePtr)
 {
-    uint32_t         i, j, k, m;
+    int         i, j, k, m;
     imagePtr    image   =   (imagePtr)malloc(sizeof(imageData));
                 image->sfs  =   (uint64_t*)malloc(sizeof(uint64_t)*SF_NUM);
                 #ifdef FIX_OPTI
                 image->position =   (uint64_t*)malloc(sizeof(uint64_t)*SF_NUM);
                 #endif
                 #ifdef FEATURE_CHECK
-                image->dc       =   (short*)malloc(sizeof(short)*SF_NUM);
+                image->dc   =   (short*)malloc(sizeof(short)*SF_NUM);
                 #endif
     uint32_t    w       =   decodePtr->targetInfo->coe->imgSize[0],
                 h       =   decodePtr->targetInfo->coe->imgSize[1];
@@ -238,7 +238,7 @@ static imagePtr compute_features(decodedDataPtr decodePtr)
                             pos[m] = (pos[m]<<32)|j;
                             #endif
                             #ifdef FEATURE_CHECK
-                            dc[m] = jbarray[i][j][0];
+                            dc[m]   =   jbarray[i][j][0];
                             #endif
                         }
                     }

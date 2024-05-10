@@ -1,8 +1,8 @@
 /*
  * @Author: Cai Deng
  * @Date: 2020-10-12 12:50:48
- * @LastEditors: Cai Deng
- * @LastEditTime: 2022-07-18 14:25:31
+ * @LastEditors: Cai Deng dengcaidengcai@163.com
+ * @LastEditTime: 2024-05-09 13:26:38
  * @Description: 
  */
 #include "jpeg.h"
