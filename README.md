@@ -64,7 +64,7 @@ __[--sf_num]__:          The number of super feature.
 __[--sf_component_num]__:The number of features each super feature contains.  
 __[--feature_method]__:  2df(Feature Bitmap)/rabin/gear
 __[--block_size]__:      The size of sliding window walking through the Feature Bitmap. (e.g., 2 means the window size is 2x2 blocks)  
-__[--dimension]__:       1(trated as 1-d byte stream like traditional deduplication does)/2(2-d image block structure).  
+__[--dimension]__:       1(treated as 1-d byte stream like how traditional deduplication does)/2(2-d image block structure).  
 __[--delta]__:           idelta/xdelta.  
 __[--data_type]__:       decoded/raw.  
 
