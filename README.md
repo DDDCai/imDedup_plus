@@ -73,6 +73,8 @@ __[--input_path]__:      The folder storing compressed images (i.e., the *output
 __[--output_path]__:     The folder for storing restored images.  
 __[--reference_path]__:  In case that you want to check if the restored images are identical with the original ones, put *all* original images in other folders into the one single ref-folder so that the program can locate and compare them.  
 
+*an example: script/run.sh*  
+
 ## Data
 
 The python script we used to produce the simulated dataset is provided in /script/wm.py.
