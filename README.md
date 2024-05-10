@@ -82,6 +82,8 @@ We also provide an instance dataset: https://pan.baidu.com/s/1qREoNOV1cvwk8nw6Pc
 ## Switches
 
 *in "idedup.h"*  
+
+
 __[CHECK_DECOMPRESS]__:  turn on to check if the images are correctly restored by the decompression. ("--reference_path" is needed)  
 __[HEADER_DELTA]__:      turn on to use xdelta to compress the JPEG header.  
 __[JPEG_SEPA_COMP]__:    turn on to compress the Y, U, and V data seperately. (NOTICE: WE DID NOT IMPLEMENT ITS DECOMPRESSION)  
