@@ -40,7 +40,11 @@ make
 
 cd ${build_folder}
 
+__COMPRESS__:
 ${program_name} -c --input_path=${data_path} --output_path=${out_path} --read_thrd_num=1 --decode_thrd_num=10 --middle_thrd_num=1 --rejpeg_thrd_num=10 --write_thrd_num=1 --buffer_size=G64 --patch_size=G1 --name_list=G1 --read_list=G2 --indx_list=G2 --decd_list=G2 --dect_list=G2 --deup_list=G2 --rejg_list=G2 --chunking=variable --road_num=1 --sf_num=10 --sf_component_num=1 --feature_method=2df --block_size=2 --dimension=2 --delta=idelta --data_type=decoded
+
+__DECOMPRESS__:
+${program_name} -d --input_path=${data_path} --output_path=${out_path} --middle_thrd_num=4 --buffer_size=G64 --read_list=G2 --jpeg_list=G2 --decd_list=G2 --deup_list=G2 --encd_list=G2 --reference_path=${ref_path}
 
 ### Parameters
 
@@ -64,3 +68,5 @@ __--data_type__:  decoded/raw.
 ## Data
 
 The python script we used to produce the simulated dataset is provided in /script/wm.py.
+
+We also provide an instance dataset: https://pan.baidu.com/s/1qREoNOV1cvwk8nw6Pcaoag?pwd=b0xx
