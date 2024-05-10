@@ -56,7 +56,7 @@ __[--output_path]__:     The folder for storing compressed images and non-redund
 __[--read/decode/rejpeg/write_thrd_num]__:  The number of threads allocated for the corresponding pipe. (read and write pipe are not included in the above figure; they are used to read raw images and write compressed images)  
 __[--middle_thrd_num]__: The number of threads allocated for the other pipes excluding pipes listed individually.  
 __[--buffer_size]__:     The size of buffer used to store decompressed images. A buffered image can help to reduce the time of reading and decoding when it is selected as base. (e.g., G2 means 2GB, and M200 means 200MB)  
-__[--patch_size]__:      imDedup_plus caches the compressed images before it reads and processes the ${patch_size} of images.   
+__[--patch_size]__:      imDedup_plus caches the compressed images before it writes them to the storage. The maximum size of cached images is ${patch_size}.
 __[--xx_list]__:         The allocated size of each list transferring intermediate results between two pipes.  
 __[--chunking]__:        variable/fixed. (If variable, only when the current subfolder has been completely processed will it close a write batch, even though it has reached the patch_size)  
 __[--road_num]__:        The number of pipelines runing concurrently.  
